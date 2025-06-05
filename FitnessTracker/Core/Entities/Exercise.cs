@@ -11,7 +11,7 @@ public class Exercise
     public long Id { get; set; }
     public string Name { get; set; }
     public string Description { get; set; }
-    public TimeSpan SummaryRepsDuration { get; set; } 
+    public TimeSpan Duration { get; set; } 
     public long TrainingId { get; set; }
     public virtual Training? Training { get; set; }
 }

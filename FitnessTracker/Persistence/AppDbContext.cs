@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using Core.Entities;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -8,21 +10,60 @@ using System.Threading.Tasks;
 
 namespace Persistence;
 
-public class AppDbContext : IdentityDbContext<AppUser, AppRole, long>
+public class AppDbContext : IdentityDbContext<AppUser, IdentityRole<long>, long>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options):base(options)
     {
     }
-    public DbSet<Establishment> Establishments { get; set; }
-    public DbSet<Order> Orders { get; set; }
 
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        #region
+
+        builder.Entity<AppUser>().ToTable("Users");
+
+        #endregion
+
+        #region Meals
+
+        builder.Entity<Meal>()
+            .HasOne(x => x.User)
+            .WithMany(x => x.Meals)
+            .HasForeignKey(x => x.UserId);
+
+        #endregion
+
+        #region Training
+
+        builder.Entity<Training>()
+            .HasOne(x => x.User)
+            .WithMany(x => x.Trainings)
+            .HasForeignKey(x => x.UserId);
+
+        #endregion
+
+        #region Exercise
+
+        builder.Entity<Exercise>()
+            .HasOne(x => x.Training)
+            .WithMany(x => x.Exercises)
+            .HasForeignKey(x => x.TrainingId);
+
+        #endregion
+
+        #region Product
+
+        builder.Entity<Product>()
+            .HasOne(x => x.Meal)
+            .WithMany(x => x.Products)
+            .HasForeignKey(x => x.MealId);
+
+        #endregion
+
+        base.OnModelCreating(builder);
+    }
+    public DbSet<Exercise> Exercises { get; set; }
+    public DbSet<Meal> Meals { get; set; }
     public DbSet<Product> Products { get; set; }
-
-    public DbSet<Sale> Sales { get; set; }
-
-    public DbSet<StandartCompliance> StandartCompliances { get; set; }
-
-    public DbSet<Supplier> Suppliers { get; set; }
-    public DbSet<Franshise> Franshises { get; set; }
-    public DbSet<MarketingCampaigns> MarketingCampaigns { get; set; }
+    public DbSet<Training> Training { get; set; }
 }
