@@ -1,8 +1,129 @@
-﻿@{
+﻿@using Core.Entities
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<AppUser> signInManager;
+@inject UserManager<AppUser> userManager;
+@{
     ViewData["Title"] = "Home Page";
+    DateTime? birthDate = null;
+    if (signInManager.IsSignedIn(User))
+    {
+        var user = await userManager.GetUserAsync(User);
+        birthDate = user?.DateOfBirth;
+    }
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="container mt-4">
+    @if (signInManager.IsSignedIn(User))
+    {
+        <div class="row mb-3">
+            <div class="col text-end">
+                <a class="btn btn-success me-2" href="/Meals/Add"><i class="bi bi-plus-circle me-1"></i>Add Meal</a>
+                <a class="btn btn-primary" href="/Trainings/Add"><i class="bi bi-plus-circle me-1"></i>Add Training</a>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-5">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Calendar</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="calendar"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-7">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Meals & Trainings for <span id="selected-date-label">[Select a day]</span></h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="day-details">
+                            <p class="text-muted">Select a day on the calendar to view details.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            window.userBirthDate = '@(birthDate?.ToString("yyyy-MM-dd") ?? "")';
+        </script>
+
+        <!-- Add Meal Modal -->
+        <div class="modal fade" id="addMealModal" tabindex="-1" aria-labelledby="addMealModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addMealModalLabel">Add Meal</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addMealForm">
+                            <div class="mb-3">
+                                <label for="mealDate" class="form-label">Date</label>
+                                <input type="date" class="form-control" id="mealDate" name="date" required />
+                            </div>
+                            <!-- You can add more fields for products here -->
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-success">Add Meal</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Training Modal -->
+        <div class="modal fade" id="addTrainingModal" tabindex="-1" aria-labelledby="addTrainingModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addTrainingModalLabel">Add Training</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addTrainingForm">
+                            <div class="mb-3">
+                                <label for="trainingDate" class="form-label">Date</label>
+                                <input type="date" class="form-control" id="trainingDate" name="date" required />
+                            </div>
+                            <div class="mb-3">
+                                <label for="trainingDescription" class="form-label">Description</label>
+                                <input type="text" class="form-control" id="trainingDescription" name="description" required />
+                            </div>
+                            <!-- You can add more fields for exercises here -->
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">Add Training</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row justify-content-center align-items-center" style="min-height: 60vh;">
+            <div class="col-md-8 text-center">
+                <h1 class="display-4 mb-3 text-primary fw-bold">Welcome to FitnessTracker</h1>
+                <p class="lead mb-4">Your all-in-one solution to track meals, workouts, and progress. Join our community and start your fitness journey today!</p>
+                <div class="mb-4">
+                    <img src="https://static.vecteezy.com/system/resources/previews/002/382/839/large_2x/fitness-tracker-app-design-concept-illustration-vector.jpg" class="img-fluid rounded shadow" alt="Fitness" style="max-height: 300px;" />
+                </div>
+                <a href="/Account/Register" class="btn btn-lg btn-primary me-2">Get Started</a>
+                <a href="/Account/Login" class="btn btn-lg btn-outline-primary">Login</a>
+            </div>
+        </div>
+    }
 </div>
+<script src="~/js/home.js" type="text/javascript"></script>
+
+@section Scripts {
+    @if (signInManager.IsSignedIn(User))
+    {
+        <script>
+            const now = new Date();
+            renderCalendar(now.getFullYear(), now.getMonth());
+        </script>
+    }
+}

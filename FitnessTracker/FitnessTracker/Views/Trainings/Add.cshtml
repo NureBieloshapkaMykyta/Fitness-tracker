@@ -1,0 +1,109 @@
+@model FitnessTracker.Models.AddTrainingViewModel
+@{
+    ViewData["Title"] = "Add Training";
+}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h2 class="mb-4 text-center"><i class="bi bi-bicycle me-2 text-primary"></i>Add Training</h2>
+                    <form asp-action="Add" method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                        <div class="form-floating mb-3">
+                            <input asp-for="Date" class="form-control" type="date" />
+                            <label asp-for="Date">Date</label>
+                            <span asp-validation-for="Date" class="text-danger"></span>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <input asp-for="Description" class="form-control" placeholder="Description" />
+                            <label asp-for="Description">Description</label>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+                        <h5 class="mb-3">Exercises</h5>
+                        <div id="exercises-list">
+                            @for (int i = 0; i < Model.Exercises.Count; i++)
+                            {
+                                <div class="border rounded p-3 mb-3 exercise-item" data-index="@i">
+                                    <div class="row g-2">
+                                        <div class="col-md-5">
+                                            <input asp-for="Exercises[@i].Name" class="form-control" placeholder="Name" />
+                                            <span asp-validation-for="Exercises[@i].Name" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input asp-for="Exercises[@i].Duration" class="form-control" placeholder="Duration (hh:mm:ss)" />
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input asp-for="Exercises[@i].Description" class="form-control" placeholder="Description" />
+                                        </div>
+                                        <div class="col-md-1 d-flex align-items-center">
+                                            <button type="button" class="btn btn-outline-danger remove-exercise-btn w-100"><i class="bi bi-trash"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-outline-primary w-100" id="addExerciseBtn"><i class="bi bi-plus-circle me-1"></i>Add Exercise</button>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-bicycle me-2"></i>Add Training
+                            </button>
+                        </div>
+                    </form>
+                    <div class="mt-3 text-center">
+                        <a asp-action="Index" asp-controller="Home" class="text-decoration-none"><i class="bi bi-arrow-left me-1"></i>Back to Home</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        let exerciseIndex = @Model.Exercises.Count;
+        document.getElementById('addExerciseBtn').onclick = function () {
+            const list = document.getElementById('exercises-list');
+            const html = `<div class="border rounded p-3 mb-3 exercise-item" data-index="${exerciseIndex}">
+                <div class="row g-2">
+                    <div class="col-md-5">
+                        <input name="Exercises[${exerciseIndex}].Name" class="form-control" placeholder="Name" required />
+                    </div>
+                    <div class="col-md-3">
+                        <input name="Exercises[${exerciseIndex}].Duration" class="form-control" placeholder="Duration (hh:mm:ss)" />
+                    </div>
+                    <div class="col-md-3">
+                        <input name="Exercises[${exerciseIndex}].Description" class="form-control" placeholder="Description" />
+                    </div>
+                    <div class="col-md-1 d-flex align-items-center">
+                        <button type="button" class="btn btn-outline-danger remove-exercise-btn w-100"><i class="bi bi-trash"></i></button>
+                    </div>
+                </div>
+            </div>`;
+            list.insertAdjacentHTML('beforeend', html);
+            exerciseIndex++;
+        };
+        document.getElementById('exercises-list').addEventListener('click', function (e) {
+            if (e.target.closest('.remove-exercise-btn')) {
+                const item = e.target.closest('.exercise-item');
+                item.remove();
+            }
+        });
+        // Autofill date field with selected date from main calendar if available
+        document.addEventListener('DOMContentLoaded', function() {
+            // Try to get date from query string
+            const urlParams = new URLSearchParams(window.location.search);
+            let selectedDate = urlParams.get('date');
+            // Or from localStorage (if you want to set it from calendar click)
+            if (!selectedDate && localStorage.getItem('selectedDate')) {
+                selectedDate = localStorage.getItem('selectedDate');
+            }
+            if (selectedDate) {
+                const dateInput = document.querySelector('input[name="Date"]');
+                if (dateInput) dateInput.value = selectedDate;
+            }
+        });
+    </script>
+} 

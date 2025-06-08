@@ -3,9 +3,11 @@ using FitnessTracker.Models;
 using Microsoft.AspNetCore.Identity;
 using System.Threading.Tasks;
 using Core.Entities;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FitnessTracker.Controllers
 {
+    [Authorize]
     public class AccountController : Controller
     {
         private readonly UserManager<AppUser> _userManager;
@@ -19,6 +21,7 @@ namespace FitnessTracker.Controllers
             _signInManager = signInManager;
         }
 
+        [AllowAnonymous]
         [HttpGet]
         public IActionResult Login(string returnUrl = null)
         {
@@ -26,6 +29,7 @@ namespace FitnessTracker.Controllers
             return View();
         }
 
+        [AllowAnonymous]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginViewModel model, string returnUrl = null)
@@ -43,6 +47,7 @@ namespace FitnessTracker.Controllers
             return View(model);
         }
 
+        [AllowAnonymous]
         [HttpGet]
         public IActionResult Register(string returnUrl = null)
         {
@@ -50,6 +55,7 @@ namespace FitnessTracker.Controllers
             return View();
         }
 
+        [AllowAnonymous]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterViewModel model, string returnUrl = null)
@@ -60,7 +66,11 @@ namespace FitnessTracker.Controllers
                 var user = new AppUser
                 {
                     UserName = model.Email,
-                    Email = model.Email
+                    Email = model.Email,
+                    FirstName = model.FirstName,
+                    LastName = model.LastName,
+                    DateOfBirth = model.DateOfBirth,
+                    Gender = model.Gender
                 };
 
                 var result = await _userManager.CreateAsync(user, model.Password);
@@ -83,6 +93,44 @@ namespace FitnessTracker.Controllers
         {
             await _signInManager.SignOutAsync();
             return RedirectToAction(nameof(HomeController.Index), "Home");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Profile()
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return NotFound();
+            return View(user);
+        }
+
+        [HttpGet]
+        public IActionResult ChangePassword()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return NotFound();
+
+            var result = await _userManager.ChangePasswordAsync(user, model.OldPassword, model.NewPassword);
+            if (result.Succeeded)
+            {
+                await _signInManager.RefreshSignInAsync(user);
+                ViewBag.StatusMessage = "Your password has been changed.";
+                return View();
+            }
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(string.Empty, error.Description);
+            }
+            return View(model);
         }
 
         private IActionResult RedirectToLocal(string returnUrl)

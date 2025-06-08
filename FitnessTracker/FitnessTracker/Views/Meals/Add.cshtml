@@ -1,0 +1,221 @@
+@model FitnessTracker.Models.AddMealViewModel
+@{
+    ViewData["Title"] = "Add Meal";
+}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h2 class="mb-4 text-center"><i class="bi bi-egg-fried me-2 text-success"></i>Add Meal</h2>
+                    <form asp-action="Add" method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                        <div class="form-floating mb-3">
+                            <input asp-for="Date" class="form-control" type="date" />
+                            <label asp-for="Date">Date</label>
+                            <span asp-validation-for="Date" class="text-danger"></span>
+                        </div>
+                        <h5 class="mb-3">Products</h5>
+                        <div id="products-list">
+                            @for (int i = 0; i < Model.Products.Count; i++)
+                            {
+                                <div class="border rounded p-3 mb-3 product-item" data-index="@i">
+                                    <div class="row g-2">
+                                        <div class="col-md-4">
+                                            <input asp-for="Products[@i].Name" class="form-control" placeholder="Name" />
+                                            <span asp-validation-for="Products[@i].Name" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input asp-for="Products[@i].WeightInGr" class="form-control" placeholder="Weight (g)" />
+                                            <span asp-validation-for="Products[@i].WeightInGr" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input asp-for="Products[@i].Calories" class="form-control" placeholder="Calories" />
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input asp-for="Products[@i].Proteins" class="form-control" placeholder="Proteins" />
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input asp-for="Products[@i].Fats" class="form-control" placeholder="Fats" />
+                                        </div>
+                                    </div>
+                                    <div class="row g-2 mt-2">
+                                        <div class="col-md-2">
+                                            <input asp-for="Products[@i].Carbohydrates" class="form-control" placeholder="Carbs" />
+                                        </div>
+                                        <div class="col-md-8">
+                                            <input asp-for="Products[@i].Description" class="form-control" placeholder="Description" />
+                                        </div>
+                                        <div class="col-md-2 d-flex align-items-center">
+                                            <button type="button" class="btn btn-outline-danger remove-product-btn w-100"><i class="bi bi-trash"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-outline-success w-100" id="addProductBtn"><i class="bi bi-plus-circle me-1"></i>Add Product</button>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-egg-fried me-2"></i>Add Meal
+                            </button>
+                        </div>
+                    </form>
+                    <div class="mt-3 text-center">
+                        <a asp-action="Index" asp-controller="Home" class="text-decoration-none"><i class="bi bi-arrow-left me-1"></i>Back to Home</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        let productIndex = @Model.Products.Count;
+        // --- Product autocomplete and autofill logic ---
+        let productData = [];
+        fetch('/data/products.csv')
+            .then(r => r.text())
+            .then(csv => {
+                productData = csv.split('\n').slice(1).map(line => {
+                    const [Name, Proteins, Fats, Carbohydrates, Calories] = line.split(',');
+                    return { Name, Proteins: parseFloat(Proteins), Fats: parseFloat(Fats), Carbohydrates: parseFloat(Carbohydrates), Calories: parseFloat(Calories) };
+                });
+            });
+
+        function createProductAutocomplete(input, weightInput, fields) {
+            let list;
+            input.addEventListener('input', function() {
+                const val = this.value.toLowerCase();
+                // Remove any previous suggestion list
+                if (!list || !list.classList.contains('autocomplete-list')) {
+                    list = document.createElement('div');
+                    list.className = 'autocomplete-list list-group position-absolute w-100';
+                    this.parentNode.appendChild(list);
+                }
+                list.innerHTML = '';
+                if (!val) return;
+                let suggestions = productData.filter(p => p.Name.toLowerCase().includes(val));
+                suggestions = suggestions.sort((a, b) => {
+                    const aName = a.Name.toLowerCase();
+                    const bName = b.Name.toLowerCase();
+                    const aStarts = aName.startsWith(val);
+                    const bStarts = bName.startsWith(val);
+                    if (aStarts && !bStarts) return -1;
+                    if (!aStarts && bStarts) return 1;
+                    return aName.length - bName.length;
+                }).slice(0, 10);
+                suggestions.forEach(p => {
+                    const item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'list-group-item list-group-item-action';
+                    item.textContent = p.Name;
+                    item.onclick = () => {
+                        input.value = p.Name;
+                        list.innerHTML = '';
+                        const weight = parseFloat(weightInput.value) || 100;
+                        fields.proteins.value = (p.Proteins * weight / 100).toFixed(2);
+                        fields.fats.value = (p.Fats * weight / 100).toFixed(2);
+                        fields.carbs.value = (p.Carbohydrates * weight / 100).toFixed(2);
+                        fields.calories.value = (p.Calories * weight / 100).toFixed(2);
+                    };
+                    list.appendChild(item);
+                });
+            });
+            document.addEventListener('click', function(e) {
+                if (!input.contains(e.target)) {
+                    if (list && list.classList.contains('autocomplete-list')) list.innerHTML = '';
+                }
+            });
+        }
+
+        function updateMacrosOnWeightChange(weightInput, fields, productNameInput) {
+            weightInput.addEventListener('input', function() {
+                const name = productNameInput.value;
+                const prod = productData.find(p => p.Name === name);
+                if (prod) {
+                    const weight = parseFloat(weightInput.value) || 100;
+                    fields.proteins.value = (prod.Proteins * weight / 100).toFixed(2);
+                    fields.fats.value = (prod.Fats * weight / 100).toFixed(2);
+                    fields.carbs.value = (prod.Carbohydrates * weight / 100).toFixed(2);
+                    fields.calories.value = (prod.Calories * weight / 100).toFixed(2);
+                }
+            });
+        }
+
+        function setupProductFields(container) {
+            const nameInput = container.querySelector('input[name$=".Name"]');
+            const weightInput = container.querySelector('input[name$=".WeightInGr"]');
+            const proteins = container.querySelector('input[name$=".Proteins"]');
+            const fats = container.querySelector('input[name$=".Fats"]');
+            const carbs = container.querySelector('input[name$=".Carbohydrates"]');
+            const calories = container.querySelector('input[name$=".Calories"]');
+            createProductAutocomplete(nameInput, weightInput, { proteins, fats, carbs, calories });
+            updateMacrosOnWeightChange(weightInput, { proteins, fats, carbs, calories }, nameInput);
+        }
+
+        document.querySelectorAll('.product-item').forEach(setupProductFields);
+
+        document.getElementById('addProductBtn').onclick = function () {
+            const list = document.getElementById('products-list');
+            const html = `<div class="border rounded p-3 mb-3 product-item position-relative" data-index="${productIndex}">
+                <div class="row g-2">
+                    <div class="col-md-4 position-relative">
+                        <input name="Products[${productIndex}].Name" class="form-control" placeholder="Name" required autocomplete="off" />
+                    </div>
+                    <div class="col-md-2">
+                        <input name="Products[${productIndex}].WeightInGr" class="form-control" placeholder="Weight (g)" required />
+                    </div>
+                    <div class="col-md-2">
+                        <input name="Products[${productIndex}].Calories" class="form-control" placeholder="Calories" />
+                    </div>
+                    <div class="col-md-2">
+                        <input name="Products[${productIndex}].Proteins" class="form-control" placeholder="Proteins" />
+                    </div>
+                    <div class="col-md-2">
+                        <input name="Products[${productIndex}].Fats" class="form-control" placeholder="Fats" />
+                    </div>
+                </div>
+                <div class="row g-2 mt-2">
+                    <div class="col-md-2">
+                        <input name="Products[${productIndex}].Carbohydrates" class="form-control" placeholder="Carbs" />
+                    </div>
+                    <div class="col-md-8">
+                        <input name="Products[${productIndex}].Description" class="form-control" placeholder="Description" />
+                    </div>
+                    <div class="col-md-2 d-flex align-items-center">
+                        <button type="button" class="btn btn-outline-danger remove-product-btn w-100"><i class="bi bi-trash"></i></button>
+                    </div>
+                </div>
+            </div>`;
+            list.insertAdjacentHTML('beforeend', html);
+            setupProductFields(list.lastElementChild);
+            productIndex++;
+        };
+        document.getElementById('products-list').addEventListener('click', function (e) {
+            if (e.target.closest('.remove-product-btn')) {
+                const item = e.target.closest('.product-item');
+                item.remove();
+            }
+        });
+        // Setup for initial fields
+        document.querySelectorAll('.product-item').forEach(setupProductFields);
+
+        // Autofill date field with selected date from main calendar if available
+        document.addEventListener('DOMContentLoaded', function() {
+            // Try to get date from query string
+            const urlParams = new URLSearchParams(window.location.search);
+            let selectedDate = urlParams.get('date');
+            // Or from localStorage (if you want to set it from calendar click)
+            if (!selectedDate && localStorage.getItem('selectedDate')) {
+                selectedDate = localStorage.getItem('selectedDate');
+            }
+            if (selectedDate) {
+                const dateInput = document.querySelector('input[name="Date"]');
+                if (dateInput) dateInput.value = selectedDate;
+            }
+        });
+    </script>
+} 
