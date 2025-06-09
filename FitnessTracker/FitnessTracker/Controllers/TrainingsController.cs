@@ -1,11 +1,12 @@
+using Core.Entities;
+using FitnessTracker.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Persistence;
-using Core.Entities;
 using Microsoft.EntityFrameworkCore;
-using FitnessTracker.Models;
+using Persistence;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace FitnessTracker.Controllers;
 
@@ -30,7 +31,8 @@ public class TrainingsController : Controller
             .Include(t => t.Exercises)
             .Where(t => t.UserId == user.Id && t.Date.Date == date.Date)
             .ToListAsync();
-        return Json(trainings);
+        var json = Json(trainings, new { ReferenceHandler = ReferenceHandler.Preserve });
+        return json;
     }
 
     [HttpGet]
