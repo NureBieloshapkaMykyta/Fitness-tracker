@@ -8,7 +8,7 @@
             <div class="card shadow-sm">
                 <div class="card-body p-4">
                     <h2 class="mb-4 text-center"><i class="bi bi-bicycle me-2 text-primary"></i>Add Training</h2>
-                    <form asp-action="Add" method="post">
+                    <form asp-action="Add" method="post" id="add-training-form">
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
                         <div class="form-floating mb-3">
                             <input asp-for="Date" class="form-control" type="date" />
@@ -21,30 +21,47 @@
                             <span asp-validation-for="Description" class="text-danger"></span>
                         </div>
                         <h5 class="mb-3">Exercises</h5>
-                        <div id="exercises-list">
+                        <div id="exercises-container">
                             @for (int i = 0; i < Model.Exercises.Count; i++)
                             {
-                                <div class="border rounded p-3 mb-3 exercise-item" data-index="@i">
-                                    <div class="row g-2">
-                                        <div class="col-md-5">
-                                            <input asp-for="Exercises[@i].Name" class="form-control" placeholder="Name" />
-                                            <span asp-validation-for="Exercises[@i].Name" class="text-danger"></span>
+                                <div class="exercise-item mb-3 p-3 border rounded">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <div class="position-relative">
+                                                <input asp-for="Exercises[i].Name" class="form-control exercise-name" 
+                                                       placeholder="Exercise name" 
+                                                       data-exercise-index="@i"
+                                                       autocomplete="off" />
+                                                <div class="exercise-suggestions position-absolute w-100 bg-white border rounded shadow-sm" 
+                                                     style="display: none; z-index: 1000; max-height: 200px; overflow-y: auto;">
+                                                </div>
+                                            </div>
                                         </div>
                                         <div class="col-md-3">
-                                            <input asp-for="Exercises[@i].Duration" class="form-control" placeholder="Duration (hh:mm:ss)" />
+                                            <input asp-for="Exercises[i].Duration" class="form-control exercise-duration" 
+                                                   type="time" placeholder="Duration" />
                                         </div>
-                                        <div class="col-md-3">
-                                            <input asp-for="Exercises[@i].Description" class="form-control" placeholder="Description" />
+                                        <div class="col-md-4">
+                                            <input asp-for="Exercises[i].Description" class="form-control exercise-description" 
+                                                   placeholder="Description" />
                                         </div>
-                                        <div class="col-md-1 d-flex align-items-center">
-                                            <button type="button" class="btn btn-outline-danger remove-exercise-btn w-100"><i class="bi bi-trash"></i></button>
+                                        <div class="col-md-1">
+                                            <button type="button" class="btn btn-outline-danger" onclick="removeExercise(this)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
                                         </div>
+                                    </div>
+                                    <div class="exercise-details mt-2 small text-muted" style="display: none;">
+                                        <span class="met-value"></span>
+                                        <span class="calories-estimate"></span>
                                     </div>
                                 </div>
                             }
                         </div>
                         <div class="mb-3">
-                            <button type="button" class="btn btn-outline-primary w-100" id="addExerciseBtn"><i class="bi bi-plus-circle me-1"></i>Add Exercise</button>
+                            <button type="button" class="btn btn-outline-primary w-100" onclick="addExercise()">
+                                <i class="bi bi-plus-circle me-1"></i>Add Exercise
+                            </button>
                         </div>
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary btn-lg">
@@ -53,56 +70,180 @@
                         </div>
                     </form>
                     <div class="mt-3 text-center">
-                        <a asp-action="Index" asp-controller="Home" class="text-decoration-none"><i class="bi bi-arrow-left me-1"></i>Back to Home</a>
+                        <a asp-action="Index" asp-controller="Home" class="text-decoration-none">
+                            <i class="bi bi-arrow-left me-1"></i>Back to Home
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        let exerciseIndex = @Model.Exercises.Count;
-        document.getElementById('addExerciseBtn').onclick = function () {
-            const list = document.getElementById('exercises-list');
-            const html = `<div class="border rounded p-3 mb-3 exercise-item" data-index="${exerciseIndex}">
-                <div class="row g-2">
-                    <div class="col-md-5">
-                        <input name="Exercises[${exerciseIndex}].Name" class="form-control" placeholder="Name" required />
+        // Get available exercises from the server
+        let availableExercises = [];
+        
+        async function loadAvailableExercises() {
+            try {
+                const response = await fetch('/api/exercises');
+                availableExercises = await response.json();
+            } catch (error) {
+                console.error('Error loading exercises:', error);
+            }
+        }
+
+        // Initialize exercise search for all existing exercise inputs
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAvailableExercises();
+            document.querySelectorAll('.exercise-name').forEach(input => {
+                initializeExerciseSearch(input, input.dataset.exerciseIndex);
+            });
+        });
+
+        function initializeExerciseSearch(input, index) {
+            input.addEventListener('input', function() {
+                const suggestionsDiv = this.parentElement.querySelector('.exercise-suggestions');
+                const value = this.value.toLowerCase();
+                
+                if (value.length < 2) {
+                    suggestionsDiv.style.display = 'none';
+                    return;
+                }
+
+                const matches = availableExercises.filter(e => 
+                    e.name.toLowerCase().includes(value)
+                );
+
+                if (matches.length > 0) {
+                    suggestionsDiv.innerHTML = matches.map(e => `
+                        <div class="p-2 hover-bg-light cursor-pointer" 
+                             onclick="selectExercise(this, ${index})"
+                             data-name="${e.name}"
+                             data-met="${e.met}">
+                            ${e.name} (${e.category})
+                        </div>
+                    `).join('');
+                    suggestionsDiv.style.display = 'block';
+                } else {
+                    suggestionsDiv.style.display = 'none';
+                }
+            });
+
+            // Add duration change handler
+            const durationInput = input.closest('.exercise-item').querySelector('.exercise-duration');
+            durationInput.addEventListener('change', () => updateCaloriesEstimate(index));
+        }
+
+        function selectExercise(element, index) {
+            const exerciseItem = document.querySelectorAll('.exercise-item')[index];
+            const nameInput = exerciseItem.querySelector('.exercise-name');
+            const suggestionsDiv = exerciseItem.querySelector('.exercise-suggestions');
+            const detailsDiv = exerciseItem.querySelector('.exercise-details');
+            
+            nameInput.value = element.dataset.name;
+            suggestionsDiv.style.display = 'none';
+            
+            // Show exercise details
+            detailsDiv.style.display = 'block';
+            detailsDiv.querySelector('.met-value').textContent = `MET: ${element.dataset.met}`;
+            
+            // Update calories estimate
+            updateCaloriesEstimate(index);
+        }
+
+        function updateCaloriesEstimate(index) {
+            const exerciseItem = document.querySelectorAll('.exercise-item')[index];
+            const nameInput = exerciseItem.querySelector('.exercise-name');
+            const durationInput = exerciseItem.querySelector('.exercise-duration');
+            const detailsDiv = exerciseItem.querySelector('.exercise-details');
+            
+            if (!nameInput.value || !durationInput.value) {
+                detailsDiv.querySelector('.calories-estimate').textContent = '';
+                return;
+            }
+            
+            const [hours, minutes] = durationInput.value.split(':').map(Number);
+            const duration = hours + minutes / 60;
+            
+            // Calculate calories (using default weight of 70kg)
+            const met = parseFloat(detailsDiv.querySelector('.met-value').textContent.split(': ')[1]);
+            const calories = Math.round(met * 70 * duration);
+            
+            detailsDiv.querySelector('.calories-estimate').textContent = 
+                `Estimated calories: ${calories} cal`;
+        }
+
+        function addExercise() {
+            const exercisesContainer = document.getElementById('exercises-container');
+            const exerciseIndex = exercisesContainer.children.length;
+            
+            const exerciseDiv = document.createElement('div');
+            exerciseDiv.className = 'exercise-item mb-3 p-3 border rounded';
+            exerciseDiv.innerHTML = `
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="position-relative">
+                            <input type="text" class="form-control exercise-name" 
+                                   name="Exercises[${exerciseIndex}].Name"
+                                   placeholder="Exercise name" 
+                                   data-exercise-index="${exerciseIndex}"
+                                   autocomplete="off">
+                            <div class="exercise-suggestions position-absolute w-100 bg-white border rounded shadow-sm" 
+                                 style="display: none; z-index: 1000; max-height: 200px; overflow-y: auto;">
+                            </div>
+                        </div>
                     </div>
                     <div class="col-md-3">
-                        <input name="Exercises[${exerciseIndex}].Duration" class="form-control" placeholder="Duration (hh:mm:ss)" />
+                        <input type="time" class="form-control exercise-duration" 
+                               name="Exercises[${exerciseIndex}].Duration"
+                               placeholder="Duration">
                     </div>
-                    <div class="col-md-3">
-                        <input name="Exercises[${exerciseIndex}].Description" class="form-control" placeholder="Description" />
+                    <div class="col-md-4">
+                        <input type="text" class="form-control exercise-description" 
+                               name="Exercises[${exerciseIndex}].Description"
+                               placeholder="Description">
                     </div>
-                    <div class="col-md-1 d-flex align-items-center">
-                        <button type="button" class="btn btn-outline-danger remove-exercise-btn w-100"><i class="bi bi-trash"></i></button>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-outline-danger" onclick="removeExercise(this)">
+                            <i class="bi bi-trash"></i>
+                        </button>
                     </div>
                 </div>
-            </div>`;
-            list.insertAdjacentHTML('beforeend', html);
-            exerciseIndex++;
-        };
-        document.getElementById('exercises-list').addEventListener('click', function (e) {
-            if (e.target.closest('.remove-exercise-btn')) {
-                const item = e.target.closest('.exercise-item');
-                item.remove();
-            }
-        });
-        // Autofill date field with selected date from main calendar if available
-        document.addEventListener('DOMContentLoaded', function() {
-            // Try to get date from query string
-            const urlParams = new URLSearchParams(window.location.search);
-            let selectedDate = urlParams.get('date');
-            // Or from localStorage (if you want to set it from calendar click)
-            if (!selectedDate && localStorage.getItem('selectedDate')) {
-                selectedDate = localStorage.getItem('selectedDate');
-            }
-            if (selectedDate) {
-                const dateInput = document.querySelector('input[name="Date"]');
-                if (dateInput) dateInput.value = selectedDate;
+                <div class="exercise-details mt-2 small text-muted" style="display: none;">
+                    <span class="met-value"></span>
+                    <span class="calories-estimate"></span>
+                </div>
+            `;
+            
+            exercisesContainer.appendChild(exerciseDiv);
+            initializeExerciseSearch(exerciseDiv.querySelector('.exercise-name'), exerciseIndex);
+        }
+
+        function removeExercise(button) {
+            button.closest('.exercise-item').remove();
+            // Update indices of remaining exercises
+            const exercisesContainer = document.getElementById('exercises-container');
+            exercisesContainer.querySelectorAll('.exercise-item').forEach((item, index) => {
+                const nameInput = item.querySelector('.exercise-name');
+                const durationInput = item.querySelector('.exercise-duration');
+                const descriptionInput = item.querySelector('.exercise-description');
+                
+                nameInput.name = `Exercises[${index}].Name`;
+                durationInput.name = `Exercises[${index}].Duration`;
+                descriptionInput.name = `Exercises[${index}].Description`;
+                nameInput.dataset.exerciseIndex = index;
+            });
+        }
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.exercise-name') && !e.target.closest('.exercise-suggestions')) {
+                document.querySelectorAll('.exercise-suggestions').forEach(div => {
+                    div.style.display = 'none';
+                });
             }
         });
     </script>

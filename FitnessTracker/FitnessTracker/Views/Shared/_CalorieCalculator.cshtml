@@ -1,0 +1,121 @@
+@{
+    var lifestyleTypes = new Dictionary<string, double>
+    {
+        { "Sedentary (little or no exercise)", 1.2 },
+        { "Lightly active (light exercise 1-3 days/week)", 1.375 },
+        { "Moderately active (moderate exercise 3-5 days/week)", 1.55 },
+        { "Very active (hard exercise 6-7 days/week)", 1.725 },
+        { "Extra active (very hard exercise & physical job)", 1.9 }
+    };
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Daily Calorie Calculator</h5>
+        <form id="calorieCalculatorForm" class="needs-validation" novalidate>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="height" class="form-label">Height (cm)</label>
+                    <input type="number" class="form-control" id="height" required min="100" max="250">
+                </div>
+                <div class="col-md-6">
+                    <label for="weight" class="form-label">Weight (kg)</label>
+                    <input type="number" class="form-control" id="weight" required min="30" max="300">
+                </div>
+                <div class="col-md-6">
+                    <label for="age" class="form-label">Age</label>
+                    <input type="number" class="form-control" id="age" required min="15" max="100">
+                </div>
+                <div class="col-md-6">
+                    <label for="sex" class="form-label">Sex</label>
+                    <select class="form-select" id="sex" required>
+                        <option value="">Choose...</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="lifestyleType" class="form-label">Activity Level</label>
+                    <select class="form-select" id="lifestyleType" required>
+                        <option value="">Choose...</option>
+                        @foreach (var type in lifestyleTypes)
+                        {
+                            <option value="@type.Value">@type.Key</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="goal" class="form-label">Goal</label>
+                    <select class="form-select" id="goal" required>
+                        <option value="">Choose...</option>
+                        <option value="loss">Weight Loss</option>
+                        <option value="maintain">Maintain Weight</option>
+                        <option value="gain">Weight Gain</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">Calculate</button>
+            </div>
+        </form>
+
+        <div id="calorieResult" class="mt-4" style="display: none;">
+            <div class="alert alert-info">
+                <h6 class="alert-heading">Your Daily Calorie Needs</h6>
+                <p class="mb-0">
+                    <strong>Maintenance Calories:</strong> <span id="maintenanceCalories">0</span> kcal/day<br>
+                    <strong>Target Calories:</strong> <span id="targetCalories">0</span> kcal/day<br>
+                    <small class="text-muted" id="calorieNote"></small>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('calorieCalculatorForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Get form values
+    const height = parseFloat(document.getElementById('height').value);
+    const weight = parseFloat(document.getElementById('weight').value);
+    const age = parseInt(document.getElementById('age').value);
+    const sex = document.getElementById('sex').value;
+    const activityLevel = parseFloat(document.getElementById('lifestyleType').value);
+    const goal = document.getElementById('goal').value;
+
+    // Calculate BMR using Mifflin-St Jeor Equation
+    let bmr;
+    if (sex === 'male') {
+        bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+    } else {
+        bmr = 10 * weight + 6.25 * height - 5 * age - 161;
+    }
+
+    // Calculate maintenance calories
+    const maintenanceCalories = Math.round(bmr * activityLevel);
+
+    // Calculate target calories based on goal
+    let targetCalories;
+    let note;
+    switch (goal) {
+        case 'loss':
+            targetCalories = maintenanceCalories - 500; // 500 calorie deficit
+            note = "Aim for a 500 calorie deficit for healthy weight loss (0.5kg per week)";
+            break;
+        case 'gain':
+            targetCalories = maintenanceCalories + 500; // 500 calorie surplus
+            note = "Aim for a 500 calorie surplus for healthy weight gain (0.5kg per week)";
+            break;
+        default:
+            targetCalories = maintenanceCalories;
+            note = "Maintain your current weight";
+    }
+
+    // Display results
+    document.getElementById('maintenanceCalories').textContent = maintenanceCalories;
+    document.getElementById('targetCalories').textContent = targetCalories;
+    document.getElementById('calorieNote').textContent = note;
+    document.getElementById('calorieResult').style.display = 'block';
+});
+</script> 

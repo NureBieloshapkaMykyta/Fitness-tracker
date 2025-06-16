@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using Persistence;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using System.Text.Json;
+using FitnessTracker.Core.Services;
 
 namespace FitnessTracker.Controllers;
 
@@ -27,18 +29,35 @@ public class TrainingsController : Controller
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Unauthorized();
+        
         var trainings = await _context.Training
             .Include(t => t.Exercises)
             .Where(t => t.UserId == user.Id && t.Date.Date == date.Date)
+            .Select(t => new {
+                t.Id,
+                t.Description,
+                t.Date,
+                Exercises = t.Exercises.Select(e => new {
+                    e.Id,
+                    e.Name,
+                    e.Duration,
+                    e.Description,
+                    e.CaloriesBurned
+                }).ToList()
+            })
             .ToListAsync();
-        var json = Json(trainings, new { ReferenceHandler = ReferenceHandler.Preserve });
-        return json;
+            
+        return Json(trainings);
     }
 
     [HttpGet]
-    public IActionResult Add()
+    public IActionResult Add(DateTime? date)
     {
-        return View(new AddTrainingViewModel { Exercises = new List<ExerciseViewModel> { new ExerciseViewModel() } });
+        return View(new AddTrainingViewModel 
+        { 
+            Date = date ?? DateTime.Today,
+            Exercises = new List<ExerciseViewModel> { new ExerciseViewModel() } 
+        });
     }
 
     [HttpPost]
@@ -47,8 +66,10 @@ public class TrainingsController : Controller
     {
         if (!ModelState.IsValid)
             return View(model);
+            
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Unauthorized();
+
         var training = new Training
         {
             UserId = user.Id,
@@ -58,12 +79,14 @@ public class TrainingsController : Controller
             {
                 Name = e.Name,
                 Duration = e.Duration,
-                Description = e.Description
+                Description = e.Description,
+                CaloriesBurned = CalorieCalculator.CalculateCaloriesBurned(e.Name, e.Duration)
             }).ToList()
         };
+        
         _context.Training.Add(training);
         await _context.SaveChangesAsync();
-        return RedirectToAction("ByDate", new { date = model.Date.ToString("yyyy-MM-dd") });
+        return RedirectToAction("Index", "Home");
     }
 
     [HttpPost]
@@ -71,10 +94,20 @@ public class TrainingsController : Controller
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Unauthorized();
+        
         var training = await _context.Training.FirstOrDefaultAsync(t => t.Id == id && t.UserId == user.Id);
         if (training == null) return NotFound();
+        
         _context.Training.Remove(training);
         await _context.SaveChangesAsync();
         return Json(new { success = true });
+    }
+
+    [HttpGet]
+    [Route("api/exercises")]
+    public IActionResult GetAvailableExercises()
+    {
+        var exercises = CalorieCalculator.GetAvailableExercises();
+        return Json(exercises);
     }
 } 

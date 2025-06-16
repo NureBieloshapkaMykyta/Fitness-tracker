@@ -8,7 +8,7 @@
             <div class="card shadow-sm">
                 <div class="card-body p-4">
                     <h2 class="mb-4 text-center"><i class="bi bi-egg-fried me-2 text-success"></i>Add Meal</h2>
-                    <form asp-action="Add" method="post">
+                    <form asp-action="Add" method="post" id="add-meal-form">
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
                         <div class="form-floating mb-3">
                             <input asp-for="Date" class="form-control" type="date" />
@@ -73,6 +73,35 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
+        // Add form submission handler
+        document.getElementById('add-meal-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch('/Meals/Add', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    return response.text();
+                }
+            })
+            .then(html => {
+                if (html) {
+                    document.open();
+                    document.write(html);
+                    document.close();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while saving the meal. Please try again.');
+            });
+        });
+
         let productIndex = @Model.Products.Count;
         // --- Product autocomplete and autofill logic ---
         let productData = [];

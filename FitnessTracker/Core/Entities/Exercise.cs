@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
 
 namespace Core.Entities;
 
@@ -14,4 +15,5 @@ public class Exercise
     public TimeSpan Duration { get; set; } 
     public long TrainingId { get; set; }
     public virtual Training? Training { get; set; }
+    public int? CaloriesBurned { get; set; }
 }

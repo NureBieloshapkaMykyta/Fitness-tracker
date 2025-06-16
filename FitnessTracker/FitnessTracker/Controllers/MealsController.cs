@@ -26,10 +26,26 @@ public class MealsController : Controller
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Unauthorized();
+        
         var meals = await _context.Meals
             .Include(m => m.Products)
             .Where(m => m.UserId == user.Id && m.Date.Date == date.Date)
+            .Select(m => new {
+                m.Id,
+                m.Date,
+                Products = m.Products.Select(p => new {
+                    p.Id,
+                    p.Name,
+                    p.Description,
+                    p.WeightInGr,
+                    p.Calories,
+                    p.Proteins,
+                    p.Fats,
+                    p.Carbohydrates
+                }).ToList()
+            })
             .ToListAsync();
+            
         return Json(meals);
     }
 
@@ -43,10 +59,10 @@ public class MealsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Add(AddMealViewModel model)
     {
-        if (!ModelState.IsValid)
-            return View(model);
+            
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Unauthorized();
+        
         var meal = new Meal
         {
             UserId = user.Id,
@@ -62,9 +78,10 @@ public class MealsController : Controller
                 Description = p.Description
             }).ToList()
         };
+        
         _context.Meals.Add(meal);
         await _context.SaveChangesAsync();
-        return RedirectToAction("ByDate", new { date = model.Date.ToString("yyyy-MM-dd") });
+        return RedirectToAction("Index", "Home");
     }
 
     [HttpPost]
@@ -72,8 +89,10 @@ public class MealsController : Controller
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Unauthorized();
+        
         var meal = await _context.Meals.FirstOrDefaultAsync(m => m.Id == id && m.UserId == user.Id);
         if (meal == null) return NotFound();
+        
         _context.Meals.Remove(meal);
         await _context.SaveChangesAsync();
         return Json(new { success = true });
